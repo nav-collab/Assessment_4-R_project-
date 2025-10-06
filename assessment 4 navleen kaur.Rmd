@@ -1,0 +1,471 @@
+---
+title: "assessment 4"
+output:
+  html_document: default
+  pdf_document: default
+date: "2025-10-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+PART 1 
+#The following code downloads the gene expression file from the given URL and reads it into R.  
+#The gene identifiers (first column) are set as the row names so that each row represents a unique gene.
+## Question 1: Reading and Viewing Gene Expression Data
+```{r}
+# Download from the assignment repo
+url_counts <- "https://raw.githubusercontent.com/ghazkha/Assessment4/main/gene_expression.tsv"
+download.file(url_counts, destfile = "gene_expression.tsv", quiet = TRUE)
+
+
+
+```
+```{r}
+# Read table; make gene IDs the row names 
+ge <- read.table("gene_expression.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+row.names(ge) <- ge[,1]
+ge <- ge[ , -1]
+
+```
+```{r}
+# Show first six genes  
+head(ge, 6)
+```
+```{r}
+## Question 2: Calculating the Mean Expression of Each Gene
+# Add mean across samples 
+ge$mean_expr <- rowMeans(ge)
+head(ge, 6)
+
+```
+```{r}
+## Question 3: List the 10 genes with highest mean
+head(ge[order(-ge$mean_expr), , drop=FALSE], 10)
+```
+```{r}
+## Question 4 Counting of genes with mean < 10
+sum(ge$mean_expr < 10)
+```
+# 35988 genes had an average expression level below 10 across all samples, suggesting weakly expressed genes, according to the output
+
+```{r}
+# Histogram of mean gene expression
+hist(ge$mean_expr,
+     xlab = "Mean Expression",
+     main = "Distribution of Mean Gene Expression Across Samples")
+    
+```
+# The histogram shows the distribution of mean expression levels for all genes. A vast majority of genes are found in the first bin which indicates that they have a very low mean expression. 
+
+```{r}
+
+# Q6: column names
+url_growth <- "https://raw.githubusercontent.com/ghazkha/Assessment4/main/growth_data.csv"
+download.file(url_growth, destfile = "growth_data.csv", quiet = TRUE)
+growth_data <- read.csv("growth_data.csv", stringsAsFactors = FALSE)   
+
+```
+```{r}
+# Inspect column names
+names(growth_data)
+
+# Preview the first six rows of the data
+head(growth_data)
+```
+#The dataset contains 5 variables which includes site- where the location of tree was measured, TreeID- unique identifier for each tree, Circumf_2005_cm, Circumf_2010_cm and Circumf_2015_cm and Circumf_2020_cm- represents circumference of tree in the respective years that is 2005. 2010, 2015 and 2020.
+
+```{r}
+# Q7: Mean & standard deviation at start (2005) and end (2020) by site
+with(growth_data, tapply(Circumf_2005_cm, Site, function(x) c(mean=mean(x), sd=sd(x))))
+with(growth_data, tapply(Circumf_2020_cm, Site, function(x) c(mean=mean(x), sd=sd(x))))
+
+```
+#At the start of the study (2005), trees in the northeast site had a slightly larger average circumference (approx 5.29 compared to those in the southwest (approx 4.86).The southwest site showed slightly greater variability (SD = 1.147) in tree size than the northeast site (SD = 0.914).
+
+#By the end of the study (2020), the northeast site still maintained a larger average circumference (approx 54.23) compared to the southwest site (approx 45.60).The northeast site exhibited substantially higher variability (SD = 25.228) in tree size in 2020 than the southwest site (SD = 17.873), suggesting a wider range of growth rates among trees in the northeast
+
+```{r}
+# Q8: Box plot of tree circumference at the start and end of the study at both sites.
+boxplot(Circumf_2005_cm ~ Site, data=growth_data,
+        ylab="Tree circumference (cm)", main="Start (2005) by site")
+boxplot(Circumf_2020_cm ~ Site, data=growth_data,
+        ylab="Tree circumference (cm)", main="End (2020) by site")
+```
+# The boxplots illustrate the distribution of tree circumference (cm) at the start (2005) and end (2020) of the study, comparing the northeast and southwest sites. At the start of the study (2005), the median tree circumference appears very similar between the northeast and southwest sites, both around 5.5cm. By the end of the study (2020), there's been a substantial increase in circumference at both sites. The northeast site shows a slightly higher median circumference (around 50 cm) compared to the southwest site (around 45 cm). The northeast site exhibits greater overall variability and a higher maximum circumference compared to the southwest site.
+
+```{r}
+# Q9: Mean growth over the last 10 years (2010–2020) at each site
+growth_data$growth_10y <- growth_data$Circumf_2020_cm - growth_data$Circumf_2010_cm
+with(growth_data, tapply(growth_10y, Site, mean))
+```
+#The northeast site exhibited a larger average growth of 42.94cm as compared to southwest site.
+```{r}
+# Q10: t.test to estimate the p-value that the 10 year growth is different at the two sites.
+t.test(growth_10y ~ Site, data=growth_data)
+```
+# Since the p value is greater than the conventional value, we fail to reject the null hypothesis. There is insufficient statistical evidence to conclude that the sites have different growth rates.
+
+Part 2
+```{r}
+library(seqinr)
+library(R.utils)
+```
+```{r}
+URL_S <- "https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria/release-62/fasta/bacteria_41_collection/staphylococcus_aureus_gca_002895385/cds/Staphylococcus_aureus_gca_002895385.ASM289538v1.cds.all.fa.gz"
+download.file(URL_S, destfile="staphylococcus_aureus_cds.fa.gz", quiet=TRUE)
+#gunzip("staphylococcus_aureus_cds.fa.gz", overwrite=TRUE)
+list.files()
+cds_S <- read.fasta("staphylococcus_aureus_cds.fa", seqtype="DNA")
+```
+```{r}
+suppressPackageStartupMessages({
+  library("seqinr") 
+  library("R.utils") 
+})
+
+```
+```{r}
+library("R.utils")
+URL= "https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria/release-62/fasta/bacteria_0_collection/escherichia_coli_str_k_12_substr_mg1655_gca_000005845/cds/Escherichia_coli_str_k_12_substr_mg1655_gca_000005845.ASM584v2.cds.all.fa.gz"
+download.file(URL,destfile="ecoli_cds.fa.gz")
+#gunzip("ecoli_cds.fa.gz")
+list.files()
+```
+```{r}
+cds_ecoli <- read.fasta("ecoli_cds.fa", seqtype="DNA")
+```
+```{r}
+
+# Q1: Number of CDS entries
+n_cds <- data.frame(
+  Organism  = c("E. coli K-12 MG1655", "Staphylococcus aureus"),
+  CDS_count = c(length(cds_ecoli), length(cds_S))
+)
+knitr::kable(n_cds, caption = "Number of coding sequences (CDS)")
+
+```
+#E. coli has more coding sequences than S. aureus.
+#This discrepancy is in line with the two species' genome sizes and gene contents: S. aureus has a smaller genome with fewer genes, whereas E. coli has a bigger and more complex genome.
+
+```{r}
+#Question 2-  Total Coding DNA , Per-CDS lengths 
+len_ecoli <- as.numeric(summary(cds_ecoli)[, 1])
+len_S     <- as.numeric(summary(cds_S)[, 1])
+```
+```{r}
+# Total base pairs and summary statistics
+total_bp <- data.frame(
+  Organism   = c("E. coli K-12 MG1655", "Staphylococcus aureus"),
+  Total_bp   = c(sum(len_ecoli), sum(len_S)),
+  Mean_len   = c(mean(len_ecoli), mean(len_S)),
+  Median_len = c(median(len_ecoli), median(len_S))
+)
+knitr::kable(total_bp, caption = "Total coding DNA and summary lengths (bp)")
+```
+#E. coli has more total coding DNA than S. aureus. The mean and median CDS lengths are slightly higher in E. coli (mean ≈ 939 bp, median 831 bp) than in S. aureus.Variations are a reflection of biological complexity, gene richness, and genome size.
+
+```{r}
+#Q3- Boxplot of CDS lengths
+boxplot(list(`E. coli` = len_ecoli, `S. aureus` = len_S),
+        ylab = "CDS length (bp)", 
+        main = "CDS length distributions")
+
+# Print mean + median 
+c(mean_ecoli = mean(len_ecoli),   median_ecoli = median(len_ecoli),
+  mean_S     = mean(len_S),       median_S     = median(len_S))
+```
+#Both organisms show similar median CDS lenghts. Although the length of the CDS varies somewhat in both species, S. aureus typically has somewhat shorter coding sequences. The two bacteria's different genome structures and gene contents are reflected in this discrepancy.
+
+```{r}
+# Q4 DNA base and protein frequency analysis
+# Flatten CDS into single DNA vectors
+dna_ecoli <- unlist(cds_ecoli)
+dna_S   <- unlist(cds_S)
+```
+```{r}
+# Base frequencies (wordsize=1 for nucleotides)
+basefreq_ecoli <- count(dna_ecoli, 1)
+basefreq_S   <- count(dna_S,   1)
+
+# Display results
+print(basefreq_ecoli)
+print(basefreq_S)
+```
+#E.coli has higher count for g and c bases comapred to t and c. S.aureus has a much higher count for a and t bases compared to g and c, which is characteristic to its genome.
+
+```{r}
+# Plot DNA base frequencies
+barplot(as.numeric(basefreq_ecoli), names.arg = names(basefreq_ecoli),
+        main = "E. coli base composition", ylab = "Count")
+
+barplot(as.numeric(basefreq_S), names.arg = names(basefreq_S),
+        main = "Staphylococcus aureus base composition", ylab = "Count")
+
+```
+#The plots visually confirm the significant difference in nucleotide composition between the two species with e.coli being rich in G+C and S. aureus being higly rich in A+T.
+
+```{r}
+# The DNA CDS sequences were translated into amino acid protein sequences using the translate function
+prot_ecoli <- lapply(cds_ecoli, translate)
+prot_S   <- lapply(cds_S,   translate)
+```
+```{r}
+# Amino acid alphabet. A custom amino acid alphabet aa was(drop stop codons '*')
+aa <- unique(prot_ecoli[[1]])
+aa <- aa[aa != "*"]
+```
+
+```{r}
+# Amino acid frequencies
+aafreq_ecoli <- count(unlist(prot_ecoli), wordsize=1, alphabet=aa)
+aafreq_S   <- count(unlist(prot_S),   wordsize=1, alphabet=aa)
+# Display amino acid frequencies for both organisms
+aafreq_ecoli
+aafreq_S
+```
+# Amino acid usage differs between the organisms.Leucine is most frequent amino acic in e.coli and Isoleucine and Lysine are frequent in S.aureus. Cysteine is rare in both the organisms.
+```{r}
+# Plot amino acid frequencies
+barplot(as.numeric(aafreq_ecoli), names.arg = names(aafreq_ecoli),
+        main = "E. coli amino acid composition", ylab = "Count")
+
+barplot(as.numeric(aafreq_S), names.arg = names(aafreq_S),
+        main = "Staphylococcus aureus amino acid composition", ylab = "Count")
+```
+# The plots shows wide distribution of amino acid counts. Leucine is most abundant in the e.coli graph as it is reaching the highest bar and cysteine being the lowest bar. In S.aureus the distribution is flatter than e.coli with similar counts. From the graph it can be seen that isoleucine and lysine have the highest bar and cysteine has the lowest.
+```{r}
+# Q5 Codon usage bias (RSCU)
+
+# E. coli RSCU across all CDS
+rscu_ecoli <- uco(unlist(cds_ecoli), index = "rscu", as.data.frame = TRUE)
+
+# Staphylococcus aureus RSCU across all CDS
+rscu_S <- uco(unlist(cds_S), index = "rscu", as.data.frame = TRUE)
+```
+```{r}
+# Show first 10 codons for each organism
+head(rscu_ecoli, 10)
+head(rscu_S, 10)
+
+```
+#Staphylococcus aureus prefers AT-rich codons like AAA and AAT, whereas E. coli prefers GC-rich codons like ACC and AGC.  Because S. aureus is more AT-rich and E. coli is more GC-rich, their genetic compositions differ in terms of translational adaptation and codon use bias.
+
+```{r}
+#Compare visually with bar plots
+barplot(rscu_ecoli$freq, names.arg = rscu_ecoli$codon,
+        main = "E. coli codon usage (RSCU)",
+        ylab = "RSCU")
+
+barplot(rscu_S$freq, names.arg = rscu_S$codon,
+        main = "Staphylococcus aureus codon usage (RSCU)",
+        ylab = "RSCU")
+```
+#The RSCU plots depicts that codon usage is not random. Each organism has a distinct pattern of preferred codons determined by genomic base composition. e.coli prefers G/C ending codons and S.aureus favours A/T ending codons.
+
+```{r}
+# Q6-Flatten proteins into single character vectors
+prots_ecoli <- unlist(lapply(cds_ecoli, translate))
+prots_S   <- unlist(lapply(cds_S,   translate))
+```
+```{r}
+# Define amino acid alphabet (drop stop codons '*')
+aa <- unique(prots_ecoli)
+aa <- aa[aa != "*"]
+```
+```{r}
+#Count 3-mers
+k3_ecoli <- count(prots_ecoli, wordsize=3, alphabet=aa)
+k3_S   <- count(prots_S,   wordsize=3, alphabet=aa)
+```
+
+```{r}
+# Top 10 over- and under-represented 3-mers in staphylococcus
+top_over_S3  <- head(sort(k3_S, decreasing=TRUE), 10)
+top_under_S3 <- head(sort(k3_S, decreasing=FALSE),10)
+
+# Print for report
+print(top_over_S3)
+print(top_under_S3)
+```
+#The proteome's preferred amino acid combinations are shown by the high frequency of the top 10 over-represented 3-mers (such as SDS, LLL, and LLI) in S. aureus proteins.  The under-represented 3-mers, such as CAW, CCC, and CCR, on the other hand, are completely absent, suggesting that they are uncommon or avoided sequences.  These patterns show biases in the composition of protein sequences that might affect the structure and function of proteins.
+
+```{r}
+#Plot top 10 over-represented 3-mers for Staphylococcus aureus
+barplot(as.numeric(top_over_S3), 
+        names.arg = names(top_over_S3),
+        main = "Staphylococcus aureus: Top 10 over-represented 3-mers")
+
+# Plot top 10 under-represented 3-mers for Staphylococcus aureus
+barplot(as.numeric(top_under_S3), 
+        names.arg = names(top_under_S3),
+        main = "Staphylococcus aureus: Top 10 under-represented 3-mers")
+```
+```{r}
+# Compare with E. coli counts for those same k-mers
+k3_ecoli[names(top_over_S3)]
+k3_ecoli[names(top_under_S3)]
+```
+# The sequences most over-represented in S. aureus (e.g., LLL, LLI) are also found at high abundance in E. coli. This suggests these motifs are common and generally favored in bacterial proteins.The sequences most under-represented in S. aureus (e.g, CAW, CCC) are extremely rare in E. coli, indicating a shared avoidance of these specific, low-frequency amino acid combinations across both species.
+
+```{r}
+# Plot top 10 over-represented 3-mers for E. coli
+top_over_E3  <- head(sort(k3_ecoli, decreasing = TRUE), 10)
+top_under_E3 <- head(sort(k3_ecoli, decreasing = FALSE), 10)
+
+barplot(as.numeric(top_over_E3), 
+        names.arg = names(top_over_E3),
+        main = "E. coli: Top 10 over-represented 3-mers")
+
+barplot(as.numeric(top_under_E3), 
+        names.arg = names(top_under_E3),
+        main = "E. coli: Top 10 under-represented 3-mers")
+```
+# The plots for  over represented 3-mers in both the species shows high counts.E. coli favors 3-mers containing abundant amino acids like Leucine and Alanine (e.g., LLA, ALL, ALA), consistent with its overall amino acid usage. The most frequent 3-mer is LLA. S. aureus favors 3-mers containing amino acids (e.g., SDS, LLL, ILL). The most frequent 3-mer is SDS. Both organisms strongly favor sequences composed of highly abundant, structurally flexible amino acids, though the specific dominant motifs differ.
+# Both species show a similar pattern of avoiding sequences composed of rare amino acids (like Cysteine), but this avoidance is likely a consequence of the low overall genomic frequency of the component amino acids.
+
+```{r}
+#Translate CDS to protein sequence
+prots_S <- lapply(cds_S, translate)
+# E. coli
+prots_ecoli <- lapply(cds_ecoli, translate)
+
+```
+```{r}
+# Flatten proteins into a single vector
+prots_S_vec <- unlist(prots_S)
+prots_ecoli_vec <- unlist(prots_ecoli)
+```
+```{r}
+aa <- unique(prots_S_vec)
+aa <- aa[aa != "*"]  # Remove stop codons
+```
+
+```{r}
+# Count 4-mers
+k4_S <- count(prots_S_vec, wordsize = 4, alphabet = aa)
+k4_ecoli <- count(prots_ecoli_vec, wordsize = 4, alphabet = aa)
+
+# Top 10 over- and under-represented 4-mers
+top_over_S4  <- head(sort(k4_S, decreasing = TRUE), 10)
+top_under_S4 <- head(sort(k4_S, decreasing = FALSE), 10)
+
+# Display results
+print(top_over_S4)
+print(top_under_S4)
+
+# E. coli
+top_over_E4  <- head(sort(k4_ecoli, decreasing = TRUE), 10)
+top_under_E4 <- head(sort(k4_ecoli, decreasing = FALSE), 10)
+
+# Print E. coli results
+print(top_over_E4)
+print(top_under_E4)
+```
+```{r}
+# Plot top 10 over-represented 4-mers for Staphylococcus aureus
+barplot(as.numeric(top_over_S4), 
+        names.arg = names(top_over_S4),
+        main = "Staphylococcus aureus: Top 10 over-represented 4-mers")
+
+# Plot top 10 under-represented 4-mers for Staphylococcus aureus
+barplot(as.numeric(top_under_S4), 
+        names.arg = names(top_under_S4),
+        main = "Staphylococcus aureus: Top 10 under-represented 4-mers")
+
+# E. coli plots
+barplot(as.numeric(top_over_E4), 
+        names.arg = names(top_over_E4),
+        main = "E. coli: Top 10 over-represented 4-mers")
+
+barplot(as.numeric(top_under_E4), 
+        names.arg = names(top_under_E4),
+        main = "E. coli: Top 10 under-represented 4-mers")
+```
+# For S.aureus the most over-represented 4-mers in S.aureus are DSDS and SDSG. The top 10 under-represented 4-mers are completely absent (count of 0), suggesting these sequences are strongly avoided or impossible to form due to underlying base composition constraints.
+# The most over-represented 4-mers in E. coli are heavily dominated by Leucine and Alanine (e.g., LAAL, ALLA), consistent with the 3-mer analysis. Similar to S. aureus, the top 10 under-represented 4-mers in E. coli are also completely absent (count of 0), reflecting extreme avoidance of certain four-amino-acid combinations.
+
+```{r}
+# Translate CDS to protein sequence
+prots_S <- lapply(cds_S, translate)
+prots_ecoli <- lapply(cds_ecoli, translate)
+
+# Flatten proteins into single vectors
+prots_S_vec <- unlist(prots_S)
+prots_ecoli_vec <- unlist(prots_ecoli)
+
+# Define amino acid alphabet (remove stop codons)
+aa <- unique(prots_S_vec)
+aa <- aa[aa != "*"]
+
+# Count 5-mers
+k5_S <- count(prots_S_vec, wordsize = 5, alphabet = aa)
+k5_ecoli <- count(prots_ecoli_vec, wordsize = 5, alphabet = aa)
+```
+```{r}
+# Top 10 over- and under-represented 5-mers
+top_over_S5  <- head(sort(k5_S, decreasing = TRUE), 10)
+top_under_S5 <- head(sort(k5_S, decreasing = FALSE), 10)
+
+# Display results for Staphylococcus aureus
+print(top_over_S5)
+print(top_under_S5)
+```
+```{r}
+# E. coli 5-mer results
+top_over_E5  <- head(sort(k5_ecoli, decreasing = TRUE), 10)
+top_under_E5 <- head(sort(k5_ecoli, decreasing = FALSE), 10)
+
+# Print E. coli results
+print(top_over_E5)
+print(top_under_E5)
+```
+
+```{r}
+# Plot top 10 over-represented 5-mers for Staphylococcus aureus
+barplot(as.numeric(top_over_S5), 
+        names.arg = names(top_over_S5),
+        main = "Staphylococcus aureus: Top 10 over-represented 5-mers")
+
+# Plot top 10 under-represented 5-mers for Staphylococcus aureus
+barplot(as.numeric(top_under_S5), 
+        names.arg = names(top_under_S5),
+        main = "Staphylococcus aureus: Top 10 under-represented 5-mers")
+
+# Plot top 10 over-represented 5-mers for E. coli
+barplot(as.numeric(top_over_E5), 
+        names.arg = names(top_over_E5),
+        main = "E. coli: Top 10 over-represented 5-mers")
+
+# Plot top 10 under-represented 5-mers for E. coli
+barplot(as.numeric(top_under_E5), 
+        names.arg = names(top_under_E5),
+        main = "E. coli: Top 10 under-represented 5-mers")
+
+```
+#The images display bar plots comparing frequency of 5-mers of e.coli and S.aureus.Both organisms show a minimal degree of under-representation for Alanine-rich 5-mers. The over-representation of  5-mers is far more pronounced in Staphylococcus aureus than in E. coli. S. aureus has an extreme over-representation of SDSDG and DSDSD sequences. E. coli shows a milder over-representation of sequences like GKSTL suggesting preferential use of these sequences for general functional or structural roles.
+
+```{r}
+sessionInfo()
+```
+
